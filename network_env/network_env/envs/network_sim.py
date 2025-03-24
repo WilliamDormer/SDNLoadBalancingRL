@@ -76,7 +76,7 @@ class NetworkEnv(gym.Env):
                 json_data = response.json()  # Convert response to a dictionary
 
                 # update self.switches_by_controller
-                print("switches_by_controller: ", json_data)
+                # print("switches_by_controller: ", json_data["data"])
                 return json_data['data'] # this will be a list of lists, where the rows are the controllers (starting 0,1,2,3), and each holds the switches it controls (indexed starting at 1)
             else:
                 raise Exception("Failed to retreive capacities from network.")

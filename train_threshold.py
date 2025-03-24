@@ -32,7 +32,7 @@ if hasattr(env, "unwrapped"): #allows us to access the get_capacities method.
 
 
 capacities = env.get_capacities()
-clr_threshold = 0.7 # the controller load ratio threshold. # seems like 0.35 is about what you'll get in terms of max load ratio in a short run of the network. 
+clr_threshold = 0.2 # the controller load ratio threshold. # seems like 0.35 is about what you'll get in terms of max load ratio in a short run of the network. 
 
 print("capacities: ", capacities)
 
@@ -131,6 +131,8 @@ for episode in range(num_episodes):
     total_reward = 0
     
     for i in range(iterations_per_episode):
+        print("\n\n")
+        print("iteration: ", i+1 , "/", iterations_per_episode)
         # Get the action from the threshold-based agent
         action = simple_threshold_agent(state)
 
