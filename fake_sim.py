@@ -134,7 +134,9 @@ def main():
             # execute the migration command
 
             print(f"Received migrate request for\ntarget_controller: {data['target_controller']}\nswitch: {data['switch']}")
-
+            c = data["target_controller"]
+            s = data['switch']
+            assert(c > 0 and c <= num_controllers and s > 0 and s <= total_switches)
             # move the switch
 
             # find the controller that it use to be in:
@@ -256,7 +258,7 @@ def main():
         print("\n\n")
         cur_time = time.time()
         interval = cur_time - prev_time
-        print("interval: ", interval)
+        # print("interval: ", interval)
 
         # the expected number of events in time T is given by 
         # E = integral(0 to T) lambda(t) dt
@@ -303,7 +305,7 @@ def main():
 
         # then perturb with poisson process.
         expected_in_duration = np.clip(expected_in_duration, a_min=0, a_max=None)
-        print("expected in duration: ", expected_in_duration)
+        # print("expected in duration: ", expected_in_duration)
 
         possion_in_duration = np.random.poisson(expected_in_duration)
         # possion_in_duration = np.reshape(possion_in_duration, (4, -1))

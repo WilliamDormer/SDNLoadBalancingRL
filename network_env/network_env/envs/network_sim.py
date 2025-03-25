@@ -169,6 +169,9 @@ class NetworkEnv(gym.Env):
         '''
 
         # compute the migration action that was selected. 
+        if not self.action_space.contains(action):
+            raise ValueError(f"Invalid action: {action}. Must be in {self.action_space}")
+
         e = int(action % self.n)
         w = int(np.ceil(action / self.n))
 
@@ -184,7 +187,7 @@ class NetworkEnv(gym.Env):
         # data = {
         #     "action" : [w, e]
         # }
-
+        assert(data["target_controller"] > 0 and data['target_controller'] <= self.m and data['switch'] > 0 and data["switch"] <= self.n)
         print(f"migrate request data: {data}")
 
         response = requests.post(self.gc_base_url + 'migrate', json=data)
