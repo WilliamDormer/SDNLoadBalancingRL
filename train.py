@@ -4,18 +4,32 @@
 # TODO we also need to evaluate if this will fit with our slower, more complex simulator.
 
 import gymnasium as gym
+from gymnasium import spaces
 
 from stable_baselines3 import DQN
 from stable_baselines3.common.evaluation import evaluate_policy
-
 import network_env
+
+total_timesteps = 100
 
 run_name = "test_train"
 tensorboard_log = "./logs/fake_sim/"
 # tensorboard --logdir ./tensor_board_log/run_name/
 # tensorboard --logdir ./test_train_3/
+# tensorboard --logdir ./logs/fake_sim/   
 
-env = gym.make(
+
+class ActionOffsetWrapper(gym.Wrapper): # this is needed because our action space starts at 1, but DQN only supports starting at 0.
+    def __init__(self, env):
+        super().__init__(env)
+        self.action_space = spaces.Discrete(env.action_space.n)
+    
+    def step(self, action):
+        return self.env.step(action + 1) # shift actions.
+
+
+env = ActionOffsetWrapper(
+    gym.make(
     'network_env/NetworkSim-v0',
     render_mode="human",
     num_controllers = 4,
@@ -26,35 +40,32 @@ env = gym.make(
     gc_port = "8000",
     step_time = 0.5, # for the fake_sim
     )
+    )
 # env = gym.make("CartPole-v1", render_mode="human")
 
 # instantiate the agent, using DQN from paper "Playing Atari with Deep Learning"
 
-# TODO I might have to manually call self.logger.dump(self.num_timesteps) in the callback, because the state isn't being written.
 from stable_baselines3.common.callbacks import BaseCallback
 
 class CustomCallback(BaseCallback): # for logging in tensorboard. 
     def __init__(self, verbose=0):
         super().__init__(verbose)
-        self.num_timesteps = 1
     
     def _on_step(self) -> bool:
         # called at each step
-        if (self.num_timesteps % 2 == 0):
+        if (self.num_timesteps % 4 == 0):
             self.logger.dump(self.num_timesteps)
             # for custom values:
             # self.logger.record("random_value", value)
-            self.num_timesteps = 0
-        self.num_timesteps += 1
         return True
 
  
 # they say there are different options for policy here, including (MlpPolicy, and CnnPolicy), maybe more. I'll use the later because that's similar to what the paper used. 
 model = DQN("MlpPolicy", env, verbose=1, tensorboard_log=tensorboard_log) # save the training information in a log.) 
 # this is actually training the agent and displaying the progress bar while doing so. 
-model.learn(total_timesteps=8,
-            log_interval=4,
-            callback= CustomCallback(),
+model.learn(total_timesteps=total_timesteps,
+            log_interval=1, # this logs after each run (not each iteration)
+            callback= CustomCallback(), # this logs at an iteration frequency
             progress_bar=True,
             tb_log_name=run_name
             ) #TODO this is sampling outside of the sample space.. maybe because of DummyVecEnv

@@ -172,7 +172,7 @@ class NetworkEnv(gym.Env):
         if not self.action_space.contains(action):
             raise ValueError(f"Invalid action: {action}. Must be in {self.action_space}")
 
-        e = int(action % self.n)
+        e = int((action-1) % self.n) + 1
         w = int(np.ceil(action / self.n))
 
         # send the migration action to the global controller.
@@ -187,6 +187,10 @@ class NetworkEnv(gym.Env):
         # data = {
         #     "action" : [w, e]
         # }
+        if not(data["target_controller"] > 0 and data['target_controller'] <= self.m and data['switch'] > 0 and data["switch"] <= self.n):
+            print("Invalid action selected:", action)
+            print("target_controller: ", w)
+            print("switch: ", e)
         assert(data["target_controller"] > 0 and data['target_controller'] <= self.m and data['switch'] > 0 and data["switch"] <= self.n)
         print(f"migrate request data: {data}")
 
