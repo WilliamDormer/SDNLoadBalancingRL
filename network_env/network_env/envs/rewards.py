@@ -11,38 +11,47 @@ class RewardGenerator:
     def reset(self):
         self.D_t_prev = None
 
-    def paper_reward(self,observation, migrate):
-            L = np.sum(observation, axis=1)
-            B = L / self.capacities
-            B_bar = np.sum(B) / self.m
-            D_t = 0
-            numerator = np.sqrt(np.sum((B - B_bar) ** 2) / self.m)  # Compute standard deviation
-            if B_bar != 0:
-                D_t = numerator / B_bar  # Final computation
-                # print("D_t (degree of balancing): ", D_t)
-            else:
-                D_t = 1
-            
-            # compute the improvement in controller load after migration.
-            D_t_diff = 0
-            if self.D_t_prev != None:
-                D_t_diff = self.D_t_prev - D_t # positive reward for the D_t getting smaller each iteration.
-                # print("D_t diff", reward)
-            self.D_t_prev = D_t
+    def computation_helper(self, observation):
+        '''
+        computes L, B, B_bar, D_t, and D_t_diff
+        '''
+        # compute Lh(t) by summing each row of the state matrix
+        L = np.sum(observation, axis=1)
+        # compute Bh(t) by dividing each by uh (capacities)
+        B = L / self.capacities
 
-            # get the migration cost
-            # F = self.migration_cost
+        # compute the average across all controllers.
+        B_bar = np.sum(B) / self.m
+
+        # compute the controller load balancing rate, D(t)
+        D_t = 0
+        numerator = np.sqrt(np.sum((B - B_bar) ** 2) / self.m)  # Compute standard deviation
+        if B_bar != 0:
+            D_t = numerator / B_bar  # Final computation
+            # print("D_t (degree of balancing): ", D_t)
+        else:
+            D_t = 1
+        
+        # compute the improvement in controller load after migration.
+        D_t_diff = 0
+        if self.D_t_prev != None:
+            D_t_diff = self.D_t_prev - D_t # positive reward for the D_t getting smaller each iteration.
+            # print("D_t diff", reward)
+        self.D_t_prev = D_t
+
+        # TODO add switch migration cost.
+
+        return L, B, B_bar, D_t, D_t_diff
+
+
+    def paper_reward(self,observation, migrate):
+
+            L, B, B_bar, D_t, D_t_diff = self.computation_helper(observation)
 
             reward = 0
             if migrate:
                 # reward = D_t_diff / F
                 reward = D_t_diff
-
-            # print(observation)
-            # print("load_ratios: ", B)
-            # print("D_t: ", D_t)
-            # print("D_t_diff: ", D_t_diff)
-            # print(reward)
             
             return reward
 
@@ -50,32 +59,8 @@ class RewardGenerator:
             '''
             In this reward, we want to 
             '''
-            # compute Lh(t) by summing each row of the state matrix
-            L = np.sum(observation, axis=1)
-            # print("L: ", L)
 
-            # compute Bh(t) by dividing each by uh (capacities)
-            B = L / self.capacities
-            # print("load_ratios: ", B)
-
-            # compute B_bar (average load) by 
-            B_bar = np.sum(B) / self.m
-            # print("average load: ", B_bar)
-
-            # compute the controller load balancing rate, D(t)
-            D_t = 0
-            numerator = np.sqrt(np.sum((B - B_bar) ** 2) / self.m)  # Compute standard deviation
-            if B_bar != 0:
-                D_t = numerator / B_bar  # Final computation
-                # print("D_t (degree of balancing): ", D_t)
-            else:
-                D_t = 1
-
-            D_t_diff = 0
-            if self.D_t_prev != None:
-                D_t_diff = self.D_t_prev - D_t # positive reward for the D_t getting smaller each iteration.
-                # print("D_t diff", reward)
-            self.D_t_prev = D_t
+            L, B, B_bar, D_t, D_t_diff = self.computation_helper(observation)
 
             reward = 0
             # in this example we want to punish not taking an action that would have improved things. 
@@ -94,32 +79,8 @@ class RewardGenerator:
             In this reward, we want to both penalize not taking an action and getting a bad score
             and we want to encourage taking an action and getting a good score. 
             '''
-            # compute Lh(t) by summing each row of the state matrix
-            L = np.sum(observation, axis=1)
-            # print("L: ", L)
 
-            # compute Bh(t) by dividing each by uh (capacities)
-            B = L / self.capacities
-            # print("load_ratios: ", B)
-
-            # compute B_bar (average load) by 
-            B_bar = np.sum(B) / self.m
-            # print("average load: ", B_bar)
-
-            # compute the controller load balancing rate, D(t)
-            D_t = 0
-            numerator = np.sqrt(np.sum((B - B_bar) ** 2) / self.m)  # Compute standard deviation
-            if B_bar != 0:
-                D_t = numerator / B_bar  # Final computation
-                # print("D_t (degree of balancing): ", D_t)
-            else:
-                D_t = 1
-
-            D_t_diff = 0
-            if self.D_t_prev != None:
-                D_t_diff = self.D_t_prev - D_t # positive reward for the D_t getting smaller each iteration.
-                # print("D_t diff", reward)
-            self.D_t_prev = D_t
+            L, B, B_bar, D_t, D_t_diff = self.computation_helper(observation)
 
             reward = 0
             # in this example we want to punish not taking an action that would have improved things. 
@@ -150,32 +111,8 @@ class RewardGenerator:
             '''
             In this reward, we want to give points only for good decisions.
             '''
-            # compute Lh(t) by summing each row of the state matrix
-            L = np.sum(observation, axis=1)
-            # print("L: ", L)
 
-            # compute Bh(t) by dividing each by uh (capacities)
-            B = L / self.capacities
-            # print("load_ratios: ", B)
-
-            # compute B_bar (average load) by 
-            B_bar = np.sum(B) / self.m
-            # print("average load: ", B_bar)
-
-            # compute the controller load balancing rate, D(t)
-            D_t = 0
-            numerator = np.sqrt(np.sum((B - B_bar) ** 2) / self.m)  # Compute standard deviation
-            if B_bar != 0:
-                D_t = numerator / B_bar  # Final computation
-                # print("D_t (degree of balancing): ", D_t)
-            else:
-                D_t = 1
-
-            D_t_diff = 0
-            if self.D_t_prev != None:
-                D_t_diff = self.D_t_prev - D_t # positive reward for the D_t getting smaller each iteration.
-                # print("D_t diff", reward)
-            self.D_t_prev = D_t
+            L, B, B_bar, D_t, D_t_diff = self.computation_helper(observation)
 
             reward = 0
             if migrate == True and D_t_diff > 0:
@@ -188,35 +125,8 @@ class RewardGenerator:
             In this reward, we want to both penalize not taking an action and getting a bad score
             and we want to encourage taking an action and getting a good score. 
             '''
-            # compute Lh(t) by summing each row of the state matrix
-            L = np.sum(observation, axis=1)
-            # print("L: ", L)
 
-            # compute Bh(t) by dividing each by uh (capacities)
-            B = L / self.capacities
-            # print("load_ratios: ", B)
-
-            # compute B_bar (average load) by 
-            B_bar = np.sum(B) / self.m
-            # print("average load: ", B_bar)
-
-            # compute the controller load balancing rate, D(t)
-            D_t = 0
-            numerator = np.sqrt(np.sum((B - B_bar) ** 2) / self.m)  # Compute standard deviation
-            if B_bar != 0:
-                D_t = numerator / B_bar  # Final computation
-                # print("D_t (degree of balancing): ", D_t)
-            else:
-                D_t = 1
-
-            D_t_diff = 0
-
-            D_t_prev_temp = self.D_t_prev
-
-            if self.D_t_prev != None:
-                D_t_diff = self.D_t_prev - D_t # positive reward for the D_t getting smaller each iteration.
-                # print("D_t diff", reward)
-            self.D_t_prev = D_t
+            L, B, B_bar, D_t, D_t_diff = self.computation_helper(observation)
 
             reward = 0
             # in this example we want to punish not taking an action that would have improved things. 
@@ -254,35 +164,9 @@ class RewardGenerator:
             '''
             Just promote balance between controllers.
             '''
-            # compute Lh(t) by summing each row of the state matrix
-            L = np.sum(observation, axis=1)
-            # print("L: ", L)
 
-            # compute Bh(t) by dividing each by uh (capacities)
-            B = L / self.capacities
-            # print("load_ratios: ", B)
+            L, B, B_bar, D_t, D_t_diff = self.computation_helper(observation)
 
-            # compute B_bar (average load) by 
-            B_bar = np.sum(B) / self.m
-            # print("average load: ", B_bar)
-
-            # compute the controller load balancing rate, D(t)
-            D_t = 0
-            numerator = np.sqrt(np.sum((B - B_bar) ** 2) / self.m)  # Compute standard deviation
-            if B_bar != 0:
-                D_t = numerator / B_bar  # Final computation
-                # print("D_t (degree of balancing): ", D_t)
-            else:
-                D_t = 1
-
-            # D_t_diff = 0
-
-            # D_t_prev_temp = self.D_t_prev
-
-            # if self.D_t_prev != None:
-            #     D_t_diff = self.D_t_prev - D_t # positive reward for the D_t getting smaller each iteration.
-            #     # print("D_t diff", reward)
-            # self.D_t_prev = D_t
             reward = -1 * D_t # the higher the average load, the worse the reward
             # print(reward)
             return reward
@@ -291,33 +175,8 @@ class RewardGenerator:
             '''
             In this reward, we want to reward having a low average load of controllers, and promote good swaps. 
             '''
-            # compute Lh(t) by summing each row of the state matrix
-            L = np.sum(observation, axis=1)
-            # print("L: ", L)
-
-            # compute Bh(t) by dividing each by uh (capacities)
-            B = L / self.capacities
-            # print("load_ratios: ", B)
-
-            # compute B_bar (average load) by 
-            B_bar = np.sum(B) / self.m
-            # print("average load: ", B_bar)
-
-            # compute the controller load balancing rate, D(t)
-            D_t = 0
-            numerator = np.sqrt(np.sum((B - B_bar) ** 2) / self.m)  # Compute standard deviation
-            if B_bar != 0:
-                D_t = numerator / B_bar  # Final computation
-                # print("D_t (degree of balancing): ", D_t)
-            else:
-                D_t = 1
-
-            D_t_diff = 0
             
-            if self.D_t_prev != None:
-                D_t_diff = self.D_t_prev - D_t # positive reward for the D_t getting smaller each iteration.
-                # print("D_t diff", reward)
-            self.D_t_prev = D_t
+            L, B, B_bar, D_t, D_t_diff = self.computation_helper(observation)
 
 
             # reward calculation. 
@@ -351,33 +210,7 @@ class RewardGenerator:
         '''
         In this reward, we want to reward having a low average load of controllers, and promote good swaps. 
         '''
-        # compute Lh(t) by summing each row of the state matrix
-        L = np.sum(observation, axis=1)
-        # print("L: ", L)
-
-        # compute Bh(t) by dividing each by uh (capacities)
-        B = L / self.capacities
-        # print("load_ratios: ", B)
-
-        # compute B_bar (average load) by 
-        B_bar = np.sum(B) / self.m
-        # print("average load: ", B_bar)
-
-        # compute the controller load balancing rate, D(t)
-        D_t = 0
-        numerator = np.sqrt(np.sum((B - B_bar) ** 2) / self.m)  # Compute standard deviation
-        if B_bar != 0:
-            D_t = numerator / B_bar  # Final computation
-            # print("D_t (degree of balancing): ", D_t)
-        else:
-            D_t = 1
-
-        D_t_diff = 0
-        
-        if self.D_t_prev != None:
-            D_t_diff = self.D_t_prev - D_t # positive reward for the D_t getting smaller each iteration.
-            # print("D_t diff", reward)
-        self.D_t_prev = D_t
+        L, B, B_bar, D_t, D_t_diff = self.computation_helper(observation)
 
 
         # reward calculation. 

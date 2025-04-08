@@ -270,6 +270,7 @@ class NetworkEnv(gym.Env):
             self.switches_by_controller = self._get_switches_by_controller() 
             # get the observation
             observation = self._get_obs()
+            print("observation: ", observation)
 
             # print("communication overhead in step: ", time.time() - com_start) # about 0.01 seconds overhead for communication. so not much.
 
@@ -305,6 +306,7 @@ class NetworkEnv(gym.Env):
                 self.switches_by_controller = self._get_switches_by_controller() 
                 # get the observation
                 observation = self._get_obs()
+                print("observation: ", observation)
 
                 # print("communication overhead in step: ", time.time() - com_start) # about 0.01 seconds overhead for communication. so not much.
 
