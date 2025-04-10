@@ -17,6 +17,8 @@ from model_classes.cnn_dqn_model import DQN_CNN
 
 from evaluate_class import Evaluate
 
+import requests
+
 
 import sys
 
@@ -229,10 +231,21 @@ model.save(f"./saves/{model_name}")
 
 print("beginning evaluation")
 
-#TODO somehow get the capacities dynamically. 
+url = f"http://{gc_ip}:{gc_port}/" + "capacities"
+response = requests.get(url)
+capacities = None
+if response.status_code == 200:
+    # get the state and return it
+    json_data = response.json()  # Convert response to a dictionary
+    capacities = json_data["data"]  # Convert list back to NumPy array
+    response.close()
+else:
+    raise Exception("Failed to retreive capacities from network.")
+
+# print("capacities: ", capacities)
+
 # evaluator = Evaluate(model, env, episode_length, -1, [12000, 10000, 10000, 12000])
-# TODO need to stop this from saving to the tensorboard during evaluation. Actually I'm not sure it's doing that...
-evaluator = Evaluate(model, env, episode_length, -1, [1000, 1000])
+evaluator = Evaluate(model, env, episode_length, -1, capacities)
 evaluator.evaluate()
 
 # # del model # remove to demonstrate saving and loading
