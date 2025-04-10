@@ -57,11 +57,11 @@ class Evaluate:
 
         # evaluate the baselines
         model = StaticPolicy(self.env.action_space, self.env.observation_space)
-        mean_reward, std_reward = evaluate_policy(self.model, self.env, n_eval_episodes=1)
+        mean_reward, std_reward = evaluate_policy(model, self.env, n_eval_episodes=1)
         print(f"from StaticPolicy: mean reward: {mean_reward}, std_reward: {std_reward}")
         model = ThresholdPolicy(self.env.action_space, self.env.observation_space, self.threshold, capacities=self.capacities)
-        mean_reward, std_reward = evaluate_policy(self.model, self.env, n_eval_episodes=1)
+        mean_reward, std_reward = evaluate_policy(model, self.env, n_eval_episodes=1)
         print(f"from ThresholdPolicy: mean reward: {mean_reward}, std_reward: {std_reward}")
         model = RandomPolicy(self.env.action_space, self.env.observation_space)
-        mean_reward, std_reward = evaluate_policy(self.model, self.env, n_eval_episodes=1)
+        mean_reward, std_reward = evaluate_policy(model, self.env, n_eval_episodes=1)
         print(f"from RandomPolicy: mean reward: {mean_reward}, std_reward: {std_reward}")

@@ -8,12 +8,9 @@ class RewardGenerator:
 
         self.D_t_prev = None # this stores the previous iteration's value for D_t, which is used in the reward calculation. 
     
-    def reset(self):
-        self.D_t_prev = None
-
-    def computation_helper(self, observation):
+    def reset(self, observation):
         '''
-        computes L, B, B_bar, D_t, and D_t_diff
+        resets d_t to the appropriate value. 
         '''
         # compute Lh(t) by summing each row of the state matrix
         L = np.sum(observation, axis=1)
@@ -30,6 +27,32 @@ class RewardGenerator:
             D_t = numerator / B_bar  # Final computation
             # print("D_t (degree of balancing): ", D_t)
         else:
+            print("B_bar was 0!")
+            D_t = 1
+
+        self.D_t_prev = D_t
+
+    def computation_helper(self, observation):
+        '''
+        computes L, B, B_bar, D_t, and D_t_diff
+        '''
+        # compute Lh(t) by summing each row of the state matrix
+        L = np.sum(observation, axis=1)
+        # compute Bh(t) by dividing each by uh (capacities)
+        B = L / self.capacities
+
+        # compute the average across all controllers.
+        B_bar = np.sum(B) / self.m
+
+        # compute the controller load balancing rate, D(t)
+        D_t = 0
+        numerator = np.sqrt(np.sum((B - B_bar) ** 2) / self.m)  # Compute standard deviation
+        # print("numerator: ", numerator)
+        if B_bar != 0:
+            D_t = numerator / B_bar  # Final computation
+            # print("D_t (degree of balancing): ", D_t)
+        else:
+            print("B_bar was 0!")
             D_t = 1
         
         # compute the improvement in controller load after migration.
@@ -42,7 +65,18 @@ class RewardGenerator:
         # TODO add switch migration cost.
 
         return L, B, B_bar, D_t, D_t_diff
-
+    
+    def collect_info(self, L, B, B_bar, D_t, D_t_diff):
+        '''
+        Computes the information dict that is returned for logging to tensorboard.
+        '''
+        return {
+            "L" : L,
+            "B" : B,
+            "B_bar" : B_bar,
+            "D_t" : D_t,
+            "D_t_diff" : D_t_diff
+        }
 
     def paper_reward(self,observation, migrate):
 
@@ -53,7 +87,7 @@ class RewardGenerator:
                 # reward = D_t_diff / F
                 reward = D_t_diff
             
-            return reward
+            return reward, self.collect_info(L, B, B_bar, D_t, D_t_diff)
 
     def penalize_poor_inaction_reward(self, observation, migrate):
             '''
@@ -72,7 +106,7 @@ class RewardGenerator:
                 # otherwise, compute reward normally
                 reward = D_t_diff
 
-            return reward
+            return reward, self.collect_info(L, B, B_bar, D_t, D_t_diff)
 
     def penalize_and_encourage_reward(self, observation, migrate):
             '''
@@ -105,7 +139,7 @@ class RewardGenerator:
                 print("D_t diff", D_t_diff)
                 print("reward: ", reward)
 
-            return reward
+            return reward, self.collect_info(L, B, B_bar, D_t, D_t_diff)
 
     def binary_reward(self, observation, migrate):
             '''
@@ -118,7 +152,7 @@ class RewardGenerator:
             if migrate == True and D_t_diff > 0:
                 reward = D_t_diff * 100
 
-            return reward
+            return reward, self.collect_info(L, B, B_bar, D_t, D_t_diff)
 
     def encourage_explore(self, observation, migrate):
             '''
@@ -158,7 +192,7 @@ class RewardGenerator:
             #     print("D_t diff", D_t_diff)
             #     print("reward: ", reward)
 
-            return reward
+            return reward, self.collect_info(L, B, B_bar, D_t, D_t_diff)
 
     def balance(self, observation, migrate):
             '''
@@ -169,7 +203,7 @@ class RewardGenerator:
 
             reward = -1 * D_t # the higher the average load, the worse the reward
             # print(reward)
-            return reward
+            return reward, self.collect_info(L, B, B_bar, D_t, D_t_diff)
 
     def custom_reward_original(self, observation, migrate):
             '''
@@ -204,7 +238,7 @@ class RewardGenerator:
 
             # reward = D_t_diff # the higher the average load, the worse the reward
             # print(reward)
-            return reward
+            return reward, self.collect_info(L, B, B_bar, D_t, D_t_diff)
 
     def custom_reward(self, observation, migrate):
         '''
@@ -246,4 +280,4 @@ class RewardGenerator:
 
         # reward = D_t_diff # the higher the average load, the worse the reward
         # print(reward)
-        return reward
+        return reward, self.collect_info(L, B, B_bar, D_t, D_t_diff)

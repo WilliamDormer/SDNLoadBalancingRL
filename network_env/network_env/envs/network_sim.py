@@ -200,8 +200,13 @@ class NetworkEnv(gym.Env):
 
         response.close()
 
+        # get the updated migrated switch positions: 
+        self.switches_by_controller = self._get_switches_by_controller() 
+
         # reset the reward generator.
-        self.rg.reset()
+        self.rg.reset(observation)
+
+        print("reset called, here's the new switches by controller: ", self.switches_by_controller)
 
         if self.render_mode == "human":
             self._render_frame()
@@ -218,6 +223,8 @@ class NetworkEnv(gym.Env):
         truncated: boolean indiciating if it was cut short. 
         info: information.
         '''
+
+        # print("called 'step' with action: ", action)
 
         # start_time = time.time() # just used for checking time to run function.
         
@@ -262,6 +269,9 @@ class NetworkEnv(gym.Env):
                 raise Exception("Failed to execute migration action with global controller.")
             response.close()
 
+            # if migrate:
+            #     print("should be migrating")
+
             # wait some time to allow the network to adjust to the change    
             if not self.fast_mode: 
                 time.sleep(self.step_time)
@@ -270,7 +280,7 @@ class NetworkEnv(gym.Env):
             self.switches_by_controller = self._get_switches_by_controller() 
             # get the observation
             observation = self._get_obs()
-            print("observation: ", observation)
+            # print("observation: ", observation)
 
             # print("communication overhead in step: ", time.time() - com_start) # about 0.01 seconds overhead for communication. so not much.
 
@@ -278,13 +288,12 @@ class NetworkEnv(gym.Env):
 
             # reward = self._paper_reward(observation, migrate)
             # # reward = self._penalize_poor_inaction_reward(observation, migrate)
-            reward = self.reward_function(observation, migrate)
-            print("reward: ", reward)
+            reward, info = self.reward_function(observation, migrate)
+            # print("reward: ", reward)
+            # print("info: ", info)
 
             if self.render_mode == "human":
                 self._render_frame()
-            
-            info = self._get_info()
 
             # print("step time: ", time.time() - start_time)
 

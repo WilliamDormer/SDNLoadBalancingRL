@@ -33,7 +33,8 @@ class FakeSim:
         signal.signal(signal.SIGTERM, self.shutdown_handler)
 
         self.switch_lock = threading.Lock()
-        self.sbc = copy.deepcopy(initial_sbc) # switches_by_controller
+        self.initial_sbc = initial_sbc
+        self.sbc = copy.deepcopy(self.initial_sbc) # switches_by_controller
 
         self.gen = TrafficGenerator(generation_mode=generation_mode, num_switches=num_switches, num_controllers=num_controllers, sbc=self.sbc, capacities=capacities, base_rates=base_rates, fast_mode=fast_mode, switch_lock=self.switch_lock, simulated_delay=simulated_delay)
 
@@ -79,6 +80,8 @@ class FakeSim:
                     assert(c > 0 and c <= num_controllers and s > 0 and s <= num_switches)
                     # move the switch
 
+                    # print("sbc before migrate: \n", self.sbc)
+
                     # find the controller that it use to be in:
                     for i in range(len(self.sbc)):
                         if data['switch'] in self.sbc[i] and i != data['target_controller'] - 1 :
@@ -87,6 +90,8 @@ class FakeSim:
                         elif i == data["target_controller"] - 1:
                             # then it's the one that needs to be added to
                             self.sbc[i].append(data["switch"])
+                    
+                    print("sbc after migrate: \n", self.sbc ) # This is working.
                     
                     # print("after migration: ", switches_by_controller)
 
@@ -162,8 +167,13 @@ class FakeSim:
                 print("reset called: ")
                 # time.sleep(1)
                 # print("switches_by_controller in reset: ", switches_by_controller)
-                switches_by_controller = copy.deepcopy(initial_sbc)
+                # self.sbc = copy.deepcopy(initial_sbc) # TODO need to change this because it's creating a new list, and then the TrafficGenerator no longer has the reference. 
                 
+                self.sbc.clear()
+                self.sbc.extend(copy.deepcopy(self.initial_sbc))
+                print("initial sbc", self.initial_sbc)
+                print("sbc after reset: ", self.sbc)
+
                 # print("switches_by_controller in reset2: ", switches_by_controller)
                 start_time = time.time()
                 prev_time = start_time
@@ -220,6 +230,9 @@ class TrafficGenerator:
         pass
 
     def generate_state(self):
+
+        # print("sbc in generate state: ", self.sbc)
+        
         gm = self.generation_mode
 
         # determine the interval.

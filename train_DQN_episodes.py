@@ -42,6 +42,7 @@ parser.add_argument('-fe', "--final_eps", type=float, default=0.05)
 parser.add_argument('-ef', "--exploration_fraction", type=float, default=0.1)
 parser.add_argument("-ie", "--initial_eps", type=float, default=1)
 parser.add_argument("-e", "--episode_length", type=int, default=100)
+parser.add_argument("-re", "--render_mode", default=None)
 args = parser.parse_args()
 
 print("args: ", args)
@@ -61,6 +62,7 @@ num_switches = args.num_switches
 max_rate = args.max_rate
 step_time = args.step_time
 fast_mode = args.fast_mode
+render_mode = args.render_mode
 
 # DQN arguments: 
 learning_rate = 0.01 #  0.001 #0.0001 # TODO try changing this from the default to what they have in paper 0.01
@@ -99,7 +101,7 @@ env = ActionOffsetWrapper(
     gym.make(
     'network_env/NetworkSim-v0',
     # render_mode="human",
-    render_mode = None, # no rendering. Way faster.
+    render_mode = render_mode,
     num_controllers = num_controllers,
     num_switches = num_switches,
     max_rate = max_rate,
@@ -169,6 +171,28 @@ class CustomCallback(BaseCallback): # for logging in tensorboard.
             if "B_bar" in self.locals:
                 B_bar = self.locals['B_bar']
                 self.logger.record("train/average_load", B_bar)
+            if "infos" in self.locals:
+                info = self.locals["infos"][0]
+
+                if "L" in info:
+                    L = info["L"]
+                    self.logger.record("train/L", L) # Histogram
+                
+                if "B" in info:
+                    B = info["B"]
+                    self.logger.record("train/B", B) # Histogram
+                
+                if "B_bar" in info:
+                    B_bar = info["B_bar"]
+                    self.logger.record("train/B_bar", B_bar) # scalar
+
+                if "D_t" in info:
+                    D_t = info["D_t"]
+                    self.logger.record("train/D_t", D_t) # 
+                
+                if "D_t_diff" in info:
+                    D_t_diff = info["D_t_diff"]
+                    self.logger.record("train/D_t_diff", D_t_diff)
 
             self.logger.dump(self.num_timesteps)
 
@@ -205,7 +229,10 @@ model.save(f"./saves/{model_name}")
 
 print("beginning evaluation")
 
-evaluator = Evaluate(model, env, episode_length, -1, [12000, 10000, 10000, 12000])
+#TODO somehow get the capacities dynamically. 
+# evaluator = Evaluate(model, env, episode_length, -1, [12000, 10000, 10000, 12000])
+# TODO need to stop this from saving to the tensorboard during evaluation. Actually I'm not sure it's doing that...
+evaluator = Evaluate(model, env, episode_length, -1, [1000, 1000])
 evaluator.evaluate()
 
 # # del model # remove to demonstrate saving and loading

@@ -12,6 +12,9 @@ from stable_baselines3.common.evaluation import evaluate_policy
 import network_env
 import json
 
+from evaluate_class import Evaluate
+
+
 from model_classes.static_model import StaticPolicy
 # from model_classes.threshold_model import ThresholdPolicy
 from model_classes.random_model import RandomPolicy
@@ -22,8 +25,8 @@ import requests
 import argparse
 
 parser = argparse.ArgumentParser()
-parser.add_argument("-mf", "--model_file", help="the model to evaluate, can be 'static', 'threshol', 'random', or 'DQN'", required=True)
-parser.add_argument("-me", "--model_to_evaluate", required=True)
+parser.add_argument("-mf", "--model_file", help="the path to the model to evaluate", required=True)
+parser.add_argument("-me", "--model_to_evaluate", help="can be 'static', 'threshold', 'random', or 'DQN'", required=True)
 parser.add_argument("-s", "--steps", help="The number of iterations to test. ", required=True, type=int)
 parser.add_argument("-rf", "--reward_function", help="The reward function to use.", required=True)
 parser.add_argument("-t", "--threshold", type=float, default = 0.5, help="The threshold for the threshold based evaluation")
@@ -178,11 +181,15 @@ else:
     raise ValueError("Didn't provide a valid value for model")
 
 
-# evaluating the agent
-# mean_reward, std_reward = evaluate_policy(model, model.get_env(), n_eval_episodes=1)
-mean_reward, std_reward = evaluate_policy(model, env, n_eval_episodes=1)
-print("mean reward: ", mean_reward)
-print("std_reward: ", std_reward)
+
+evaluator = Evaluate(model, env, max_steps, -1, capacities)
+evaluator.evaluate()
+
+# # evaluating the agent
+# # mean_reward, std_reward = evaluate_policy(model, model.get_env(), n_eval_episodes=1)
+# mean_reward, std_reward = evaluate_policy(model, env, n_eval_episodes=1)
+# print("mean reward: ", mean_reward)
+# print("std_reward: ", std_reward)
 
 # obs, info = env.reset()
 # print("got here")
