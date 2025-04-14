@@ -18,6 +18,7 @@ from model_classes.cnn_dqn_model import DQN_CNN
 from evaluate_class import Evaluate
 
 import requests
+import os
 
 
 import sys
@@ -30,25 +31,49 @@ parser.add_argument("-rf", "--reward_function", required=True, help="The reward 
 parser.add_argument("-t", "--timesteps", type=int, required=True, help="The number of iterations to train")
 parser.add_argument("-m", "--model_name", required=True, help="The name of the model save file.")
 parser.add_argument("-nn", "--nn_type", required=True, help="What kind of NN you want, can be MLP or CNN")
-parser.add_argument("-tu", "--target_update_frequency", type=int, required=True, help="the target update frequency, must be higher than the episode length.")
+parser.add_argument("-tu", "--target_update_frequency", type=int, required=True, help="the target update interval (after how many environment steps to update the target network), must be higher than the episode length.")
+parser.add_argument("-c", "--num_controllers", type=int, required=True)
+parser.add_argument("-s", "--num_switches", type=int, required=True)
 # optional arguments
+parser.add_argument("--normalize", default=True, type=bool)
 parser.add_argument('-r', "--run_name", default="test", required=False)
 parser.add_argument("-tl", "--tensorboard_log", default = "./logs/")
-parser.add_argument("-c", "--num_controllers", type=int, required=False, default=4)
-parser.add_argument("-s", "--num_switches", type=int, required=False, default=26)
 parser.add_argument("--gc_ip", default='127.0.0.1', type=str)
 parser.add_argument("--gc_port", default="8000", type=str)
 parser.add_argument("--max_rate", type=int, default=5000)
-parser.add_argument("--step_time", type=float, default=0.5)
+parser.add_argument("--step_time", type=float, default=5)
 parser.add_argument("-f", "--fast_mode", type=bool, default=True)
 parser.add_argument('-fe', "--final_eps", type=float, default=0.05)
 parser.add_argument('-ef', "--exploration_fraction", type=float, default=0.1)
 parser.add_argument("-ie", "--initial_eps", type=float, default=1)
-parser.add_argument("-e", "--episode_length", type=int, default=100)
+parser.add_argument("-e", "--episode_length", type=int, default=10)
 parser.add_argument("-re", "--render_mode", default=None)
+parser.add_argument("--batch_size", default=32, type=int)
+parser.add_argument("--train_freq", default=4, type=int, help="Update the model every train_freq steps.")
+parser.add_argument("--buffer_size", default=10000, type=int)
+parser.add_argument("--gamma", type=float, default=0.2)
+parser.add_argument("--tau", default=1.0, type=float)
+parser.add_argument("--learning_starts", default=0, type=int)
+parser.add_argument("--learning_rate", default=0.01, type=float)
+parser.add_argument("--gradient_steps", default=1, type=int)
+parser.add_argument("--max_grad_norm", type=float, default=10.0)
+parser.add_argument("--stats_window_size", default=100, type=int)
+parser.add_argument("--seed", default=None, type=int)
 args = parser.parse_args()
 
 print("args: ", args)
+
+save_path = f"./saves/{args.model_name}"
+
+# save all arguments into a file for reference. 
+param_log_path = os.path.splitext(save_path)[0] + "_params.txt"
+
+# Save all arguments to the parameter log file
+with open(param_log_path, "w") as f:
+    for arg, value in vars(args).items():
+        f.write(f"{arg}:{value}\n")
+
+
 
 # logging parameters
 run_name = args.run_name
@@ -67,21 +92,27 @@ step_time = args.step_time
 fast_mode = args.fast_mode
 render_mode = args.render_mode
 target_update_frequency = args.target_update_frequency
+normalize = args.normalize
 
 # DQN arguments: 
-learning_rate = 0.01 #  0.001 #0.0001 # TODO try changing this from the default to what they have in paper 0.01
+learning_rate = args.learning_rate #  0.001 #0.0001 # TODO try changing this from the default to what they have in paper 0.01
 model_name = args.model_name
 total_timesteps = args.timesteps
-
 # also the way they used these is completely different. Check paper. 
 exploration_fraction = args.exploration_fraction
 exploration_initial_eps = args.initial_eps
 exploration_final_eps = args.final_eps
-learning_starts=0
-tau = 1
-gamma = 0.2 # TODO try making this low? they used 0.2 in the paper. #when using 0.999 it actually tried to move, here it doesn't. # doesn't seem to have much impact, i tried 3 values on all sides. It does impact the loss though.
-buffer_size= 1000000
+learning_starts=args.learning_starts
+tau = args.tau
+gamma = args.gamma # TODO try making this low? they used 0.2 in the paper. #when using 0.999 it actually tried to move, here it doesn't. # doesn't seem to have much impact, i tried 3 values on all sides. It does impact the loss though.
+buffer_size= args.buffer_size # 1000000
 nn_type = args.nn_type
+batch_size = args.batch_size
+train_freq = args.train_freq
+gradient_steps = args.gradient_steps
+max_grad_norm = args.max_grad_norm
+stats_window_size = args.stats_window_size
+seed = args.seed
 
 # run_name = "test_paper_reward_10000"
 # tensorboard_log = "./logs/fake_sim/"
@@ -114,7 +145,8 @@ env = ActionOffsetWrapper(
     gc_port = gc_port,
     step_time = step_time, # for the fake_sim, when running in non fast-mode
     fast_mode = fast_mode, # for no delays, it uses a simulated delay
-    reward_function = reward_function
+    reward_function = reward_function,
+    normalize = normalize,
     )
 )
 
@@ -208,19 +240,27 @@ model = DQN(
     "MlpPolicy",
     env, 
     learning_rate=learning_rate,
+    buffer_size= buffer_size, # size of the experience buffer, default : 1,000,000
     learning_starts=learning_starts, # using something other than 0 for this this seems to have improved things?
+    batch_size = batch_size,
     tau = tau, # default 1
-    verbose=0, 
-    tensorboard_log=tensorboard_log,
+    gamma = gamma, # default 0.99 
+    train_freq = train_freq,
+    gradient_steps = gradient_steps,
+    target_update_interval=target_update_frequency,
     exploration_fraction = exploration_fraction, # defult 0.1 # so far 0.5 has done the best
     exploration_initial_eps = exploration_initial_eps, # default 1 # initial value of epsilon
     exploration_final_eps = exploration_final_eps, # default 0.05 # final value of epsilon after exploration_fraction timesteps.
-    gamma = gamma, # default 0.99 
-    buffer_size= buffer_size, # size of the experience buffer, default : 1,000,000
-    target_update_interval=target_update_frequency
+    max_grad_norm = max_grad_norm,
+    stats_window_size = stats_window_size,
+    tensorboard_log=tensorboard_log,
+    verbose=0, 
+    seed = seed,
     ) # save the training information in a log.) 
 # this is actually training the agent and displaying the progress bar while doing so. 
 assert total_timesteps > episode_length
+
+# num_episodes = total_timesteps / episode_length 
 
 print("beginning training:")
 model.learn(total_timesteps=total_timesteps,
@@ -229,7 +269,7 @@ model.learn(total_timesteps=total_timesteps,
             progress_bar=True,
             tb_log_name=run_name
             )
-model.save(f"./saves/{model_name}")
+model.save(save_path)
 
 print("beginning evaluation")
 

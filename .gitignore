@@ -1,3 +1,4 @@
 logs/*
 dqn_network.zip
 saves/*
+__pycache__

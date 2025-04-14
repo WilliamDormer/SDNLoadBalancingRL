@@ -38,7 +38,7 @@ class Evaluate:
     '''
     This class designed to run evaluation on the given model, to make it easier to see if training is successful.
     '''
-    def __init__(self, model:BasePolicy, environment:Env, max_steps ,threshold, capacities):
+    def __init__(self, model:BasePolicy, environment:Env, max_steps ,threshold, capacities, n_eval_episodes = 5):
         self.model = model # the model to evaluate
         # max_steps is the maximum number of steps of the environment before termination.
 
@@ -49,10 +49,12 @@ class Evaluate:
         self.threshold = threshold # the threshold value to use
         self.capacities = capacities # the capacities of the controllers.
 
+        self.n_eval_episodes = n_eval_episodes # the number of evalulation episodes. Important because it makes it so that randomness doesn't influence things. 
+
     def evaluate(self):
 
         # evaluate the given model
-        mean_reward, std_reward = evaluate_policy(self.model, self.env, n_eval_episodes=1)
+        mean_reward, std_reward = evaluate_policy(self.model, self.env, n_eval_episodes=self.n_eval_episodes)
         print(f"from model: mean reward: {mean_reward}, std_reward: {std_reward}")
 
         # evaluate the baselines
@@ -63,5 +65,5 @@ class Evaluate:
         mean_reward, std_reward = evaluate_policy(model, self.env, n_eval_episodes=1)
         print(f"from ThresholdPolicy: mean reward: {mean_reward}, std_reward: {std_reward}")
         model = RandomPolicy(self.env.action_space, self.env.observation_space)
-        mean_reward, std_reward = evaluate_policy(model, self.env, n_eval_episodes=1)
+        mean_reward, std_reward = evaluate_policy(model, self.env, n_eval_episodes=self.n_eval_episodes)
         print(f"from RandomPolicy: mean reward: {mean_reward}, std_reward: {std_reward}")

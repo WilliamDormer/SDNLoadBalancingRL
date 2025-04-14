@@ -33,6 +33,7 @@ parser.add_argument("-t", "--threshold", type=float, default = 0.5, help="The th
 parser.add_argument("-r", "--render_mode", default=None, help="The render mode, either None or human")
 parser.add_argument("-c", "--num_controllers", type=int, default=4)
 parser.add_argument("-ns", "--num_switches", type=int, default=26)
+parser.add_argument('-n', "--normalize", type=bool, required=True)
 args = parser.parse_args()
 
 model_file = args.model_file
@@ -43,6 +44,7 @@ threshold = args.threshold
 render_mode = args.render_mode
 num_controllers = args.num_controllers
 num_switches = args.num_switches
+normalize = args.normalize
 
 
 # model_to_evaluate = "static" # "static", "threshold", "DQN", "random"
@@ -72,7 +74,8 @@ if model_to_evaluate != "PPO":
         gc_port = gc_port,
         step_time = 0.5, # for the fake_sim
         fast_mode = True,
-        reward_function= reward_function
+        reward_function= reward_function,
+        normalize = normalize,
     )
     # configure the environment
     env = ActionOffsetWrapper(env)
@@ -90,7 +93,8 @@ else:
     step_time = 0.5, # for the fake_sim, when running in non fast-mode
     fast_mode = True, # for no delays, it uses a simulated delay
     alternate_action_space = True,
-    reward_function = "explore"
+    reward_function = "explore",
+    normalize = normalize
     )
 
 url = f"http://{gc_ip}:{gc_port}/" + "capacities"

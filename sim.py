@@ -13,7 +13,9 @@ if __name__ == "__main__":
     parser.add_argument('-br', "--base_rates", type=literal_eval, required=True)
     parser.add_argument('-f', "--fast_mode", type=bool, required=True)
     parser.add_argument('-sd', "--simulated_delay", type=float, required=True)
-    
+    parser.add_argument( "-fa", "--fluctuation_amplitudes", default=None, type=literal_eval)
+    parser.add_argument("--period", default=None, type=float)
+    parser.add_argument("--random_init", type=bool, default=False)
 
     args = parser.parse_args()
 
@@ -38,7 +40,10 @@ if __name__ == "__main__":
         initial_sbc=initial_sbc, 
         base_rates = base_rates, 
         fast_mode=fast_mode,
-        simulated_delay=simulated_delay
+        simulated_delay=simulated_delay,
+        fluctuation_amplitudes=args.fluctuation_amplitudes,
+        period = args.period,
+        random_init=args.random_init
     )
 
     # sim = FakeSim(

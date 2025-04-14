@@ -12,11 +12,13 @@ import threading
 
 import numpy as np
 
+import random
+
 
 
 
 class FakeSim:
-    def __init__(self, generation_mode:str, num_switches:int, num_controllers:int, capacities:list, initial_sbc:list, base_rates:list, fast_mode:bool, simulated_delay = None):
+    def __init__(self, generation_mode:str, num_switches:int, num_controllers:int, capacities:list, initial_sbc:list, base_rates:list, fast_mode:bool, simulated_delay = None, fluctuation_amplitudes : list | None = None, period : float | None = None, random_init = False):
 
         print("init called")
 
@@ -36,7 +38,20 @@ class FakeSim:
         self.initial_sbc = initial_sbc
         self.sbc = copy.deepcopy(self.initial_sbc) # switches_by_controller
 
-        self.gen = TrafficGenerator(generation_mode=generation_mode, num_switches=num_switches, num_controllers=num_controllers, sbc=self.sbc, capacities=capacities, base_rates=base_rates, fast_mode=fast_mode, switch_lock=self.switch_lock, simulated_delay=simulated_delay)
+        self.random_init = random_init
+
+        self.gen = TrafficGenerator(
+            generation_mode=generation_mode, 
+            num_switches=num_switches, 
+            num_controllers=num_controllers, 
+            sbc=self.sbc, capacities=capacities,
+            base_rates=base_rates, 
+            fast_mode=fast_mode, 
+            switch_lock=self.switch_lock, 
+            simulated_delay=simulated_delay, 
+            fluctuation_amplitudes=fluctuation_amplitudes, 
+            period=period
+            )
 
         app = Flask(__name__)
 
@@ -91,7 +106,7 @@ class FakeSim:
                             # then it's the one that needs to be added to
                             self.sbc[i].append(data["switch"])
                     
-                    print("sbc after migrate: \n", self.sbc ) # This is working.
+                    # print("sbc after migrate: \n", self.sbc ) # This is working.
                     
                     # print("after migration: ", switches_by_controller)
 
@@ -168,11 +183,22 @@ class FakeSim:
                 # time.sleep(1)
                 # print("switches_by_controller in reset: ", switches_by_controller)
                 # self.sbc = copy.deepcopy(initial_sbc) # TODO need to change this because it's creating a new list, and then the TrafficGenerator no longer has the reference. 
-                
                 self.sbc.clear()
-                self.sbc.extend(copy.deepcopy(self.initial_sbc))
-                print("initial sbc", self.initial_sbc)
-                print("sbc after reset: ", self.sbc)
+                if self.random_init:
+                    # generate a random initialization
+                    # for each switch, pick a controller randomly to join.
+                    new_sbc = [ [] for _ in range(num_controllers)]
+                    # print("new_sbc: ", new_sbc)
+                    for switch in range(1,num_switches + 1):
+                        # pick a controller randomly. 
+                        controller = random.randint(0, num_controllers-1)
+                        # print("controller: ", controller)
+                        new_sbc[controller].append(switch)
+                    self.sbc.extend(new_sbc)
+                else:
+                    self.sbc.extend(copy.deepcopy(self.initial_sbc))
+                # print("initial sbc", self.initial_sbc)
+                # print("sbc after reset: ", self.sbc)
 
                 # print("switches_by_controller in reset2: ", switches_by_controller)
                 start_time = time.time()
@@ -205,7 +231,7 @@ class TrafficGenerator:
     '''
     This class controls the various traffic generation regimes. 
     '''
-    def __init__(self, generation_mode, num_switches:int, num_controllers:int, capacities:list, sbc:list, base_rates:list, fast_mode:bool, switch_lock, simulated_delay=None):
+    def __init__(self, generation_mode, num_switches:int, num_controllers:int, capacities:list, sbc:list, base_rates:list, fast_mode:bool, switch_lock, simulated_delay=None, max_rate=5000, fluctuation_amplitudes : list | None = None, period : float | None = None):
         
         if fast_mode and simulated_delay == None:
             raise ValueError("must supply a simulated_delay if using fast_mode")
@@ -213,12 +239,26 @@ class TrafficGenerator:
         self.simulated_delay = simulated_delay
 
         self.generation_mode = generation_mode
+
+        if generation_mode == "poisson":
+            if fluctuation_amplitudes == None:
+                raise ValueError("if using poisson generation, fluctuation_amplitudes cannot be None")
+            if period == None:
+                raise ValueError("period cannot be None if using poisson generation")
+            
+            self.fluctuation_amplitudes = fluctuation_amplitudes
+            self.period = period
+            print("generating poisson traffic")
+        elif generation_mode == "base_rate":
+            print("generating base_rate traffic")
+
         self.base_rates = base_rates
         self.num_controllers = num_controllers
         self.num_switches = num_switches
         self.sbc = sbc #TODO check that this is a reference not a copy
         self.capacities = capacities
         
+        self.max_rate = max_rate
 
         # Thread management
         self.switch_lock = switch_lock
@@ -252,8 +292,45 @@ class TrafficGenerator:
         
         state_matrix = None
 
-        if gm == "poisson":
-            raise ValueError("not implemented in this sim")
+        if gm == "poisson": # the one from the paper
+
+            P = self.period # period in seconds for the sinusoid. 
+            T_end = cur_time - self.start_time
+            T_begin = self.prev_time - self.start_time
+            A = self.fluctuation_amplitudes
+            A = np.array(A)
+            # lambda_0 = base_rates * base_rate_multiplier
+            # lambda_0 = self.base_rates
+            lambda_0 = np.array(self.base_rates)
+
+            # print("P: ", P)
+            # print("A: ", A)
+            # print("Type of A[0]: ", type(A[0]))
+            # print("T_end: ", T_end)
+            # print("T_begin: ", T_begin)
+            # print("lambda_0: ", lambda_0)
+
+            # find the expected number of events using sinusoid.
+            # find number of expected events as the start and end times, then subtract to find the expected number of events in the interval.
+            expected_events_begin = lambda_0 * T_begin - lambda_0 * A * (P / (2 * np.pi)) * (np.cos(2 * np.pi * T_begin / P) - 1)
+            expected_events_end = lambda_0 * T_end - lambda_0 * A * (P / (2 * np.pi)) * (np.cos(2 * np.pi * T_end / P) - 1)
+            expected_in_duration = (expected_events_end - expected_events_begin )
+            # clip so that it's always positive or zero.
+            expected_in_duration = np.clip(expected_in_duration, a_min=0, a_max=None)
+            # generate the new randomized number via poisson distribution.
+            possion_in_duration = np.random.poisson(expected_in_duration)
+            # convert the total number of events into an interval
+            poisson_rate = possion_in_duration / interval
+            # clip the poisson rate into the valid interval.
+            poisson_rate = np.clip(poisson_rate, a_min=0, a_max=self.max_rate) # this does slow it down a bit.
+            state_matrix = np.zeros(shape=(self.num_controllers, self.num_switches))
+
+            with self.switch_lock:
+                for c in range(self.num_controllers):
+                    for s in self.sbc[c]:
+                        # add the relevant rate to the state matrix
+                        state_matrix[c, s-1] = poisson_rate[s-1]
+
         elif gm == "burst":
             raise ValueError("not implemented in this sim")
         elif gm == "burst_per_controller":
@@ -275,6 +352,7 @@ class TrafficGenerator:
         # print("state_matrix")
         # print(state_matrix)
         # time.sleep(1)
+        # print(state_matrix)
         return state_matrix
     
 

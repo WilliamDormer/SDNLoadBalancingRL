@@ -12,7 +12,7 @@ class NetworkEnv(gym.Env):
     # None will simply run with no GUI.
     metadata = {"render_modes": ["human"], "render_fps": 4}
 
-    def __init__(self, num_controllers, num_switches, max_rate, gc_ip, gc_port, reward_function, step_time=5, fast_mode=False, reset_timeout = 35, window_size=512, migration_cost = 5, render_mode=None, alternate_action_space = False):
+    def __init__(self, num_controllers, num_switches, max_rate, gc_ip, gc_port, reward_function, step_time=5, fast_mode=False, reset_timeout = 35, window_size=512, migration_cost = 5, render_mode=None, alternate_action_space = False, normalize=False):
         '''
         num_controllers: the number of controllers
         num_switches: the number of switches
@@ -36,6 +36,7 @@ class NetworkEnv(gym.Env):
         self.migration_cost = migration_cost
         self.reward_function = reward_function
         self.alternate_action_space = alternate_action_space
+        self.normalize = normalize
 
         self.gc_base_url = f"http://{gc_ip}:{self.gc_port}/"
         print("url: ", self.gc_base_url)
@@ -164,6 +165,14 @@ class NetworkEnv(gym.Env):
             array = np.array(json_data["state"])  # Convert list back to NumPy array
             # convert it to the observation space 
             array = np.array(array, dtype=np.float32)
+
+            if self.normalize:
+                # normalize the array, need to do this in reset too.
+                array = np.clip(array / self.max_rate, 0.0, 1.0)
+
+            # print("self.normalize: ", self.normalize)
+            # print("array: ", array)
+
             response.close()
             return array
         else:
@@ -197,6 +206,9 @@ class NetworkEnv(gym.Env):
         observation = np.array(json_data["state"])  # Convert list back to NumPy array
         # convert it to the observation space 
         observation = np.array(observation, dtype=np.float32)
+        if self.normalize:
+                # normalize the array, need to do this in reset too.
+                observation = np.clip(observation / self.max_rate, 0.0, 1.0)
 
         response.close()
 
@@ -206,7 +218,7 @@ class NetworkEnv(gym.Env):
         # reset the reward generator.
         self.rg.reset(observation)
 
-        print("reset called, here's the new switches by controller: ", self.switches_by_controller)
+        # print("reset called, here's the new switches by controller: ", self.switches_by_controller)
 
         if self.render_mode == "human":
             self._render_frame()
